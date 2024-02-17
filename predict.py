@@ -1,5 +1,6 @@
 from hashlib import sha512
 import os
+from io import BytesIO
 from typing import List
 import time
 import requests
@@ -36,6 +37,14 @@ IS_FP16 = os.environ.get("IS_FP16", "0") == "1"
 
 def url_local_fn(url):
     return sha512(url.encode()).hexdigest() + ".safetensors"
+
+
+def load_image_from_url(url):
+    response = requests.get(url)
+    response.raise_for_status()  # 确保请求成功
+    image_data = BytesIO(response.content)
+    image = Image.open(image_data)
+    return image
 
 
 def download_lora(url):
@@ -116,77 +125,79 @@ class Predictor(BasePredictor):
 
     @torch.inference_mode()
     def predict(
-        self,
-        prompt: str = Input(
-            description="Input prompt. Use <1>, <2>, <3>, etc., to specify LoRA concepts",
-            default="a photo of <1> riding a horse on mars",
-        ),
-        negative_prompt: str = Input(
-            description="Specify things to not see in the output",
-            default="",
-        ),
-        width: int = Input(
-            description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
-            default=512,
-        ),
-        height: int = Input(
-            description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
-            choices=[128, 256, 384, 448, 512, 576, 640, 704, 768, 832, 896, 960, 1024],
-            default=512,
-        ),
-        num_outputs: int = Input(
-            description="Number of images to output.",
-            ge=1,
-            le=4,
-            default=1,
-        ),
-        num_inference_steps: int = Input(
-            description="Number of denoising steps", ge=1, le=500, default=50
-        ),
-        guidance_scale: float = Input(
-            description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
-        ),
-        image: Path = Input(
-            description="(Img2Img) Inital image to generate variations of. If this is not none, Img2Img will be invoked.",
-            default=None,
-        ),
-        prompt_strength: float = Input(
-            description="(Img2Img) Prompt strength when providing the image. 1.0 corresponds to full destruction of information in init image",
-            default=0.8,
-        ),
-        scheduler: str = Input(
-            default="DPMSolverMultistep",
-            choices=[
-                "DDIM",
-                "K_EULER",
-                "DPMSolverMultistep",
-                "K_EULER_ANCESTRAL",
-                "PNDM",
-                "KLMS",
-            ],
-            description="Choose a scheduler.",
-        ),
-        lora_urls: str = Input(
-            description="List of urls for safetensors of lora models, seperated with | .",
-            default="",
-        ),
-        lora_scales: str = Input(
-            description="List of scales for safetensors of lora models, seperated with | ",
-            default="0.5",
-        ),
-        seed: int = Input(
-            description="Random seed. Leave blank to randomize the seed", default=None
-        ),
-        adapter_condition_image: Path = Input(
-            description="(T2I-adapter) Adapter Condition Image to gain extra control over generation. If this is not none, T2I adapter will be invoked. Width, Height of this image must match the above parameter, or dimension of the Img2Img image.",
-            default=None,
-        ),
-        adapter_type: str = Input(
-            description="(T2I-adapter) Choose an adapter type for the additional condition.",
-            choices=["sketch", "seg", "keypose", "depth"],
-            default="sketch",
-        ),
+            self,
+            prompt: str = Input(
+                description="Input prompt. Use <1>, <2>, <3>, etc., to specify LoRA concepts",
+                default="a photo of <1> riding a horse on mars",
+            ),
+            negative_prompt: str = Input(
+                description="Specify things to not see in the output",
+                default="",
+            ),
+            width: int = Input(
+                description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
+                default=512,
+            ),
+            height: int = Input(
+                description="Height of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
+                default=512,
+            ),
+            num_outputs: int = Input(
+                description="Number of images to output.",
+                ge=1,
+                le=4,
+                default=1,
+            ),
+            num_inference_steps: int = Input(
+                description="Number of denoising steps", ge=1, le=500, default=50
+            ),
+            guidance_scale: float = Input(
+                description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
+            ),
+            image: str = Input(
+                description="(Img2Img) Inital image to generate variations of. If this is not none, Img2Img will be invoked.Just One",
+                default="",
+            ),
+            mask: str = Input(
+                description="Black and white image to use as mask for inpainting over the image provided. White pixels are inpainted and black pixels are preserved",
+                default="",
+            ),
+            prompt_strength: float = Input(
+                description="(Img2Img) Prompt strength when providing the image. 1.0 corresponds to full destruction of information in init image",
+                default=0.8,
+            ),
+            scheduler: str = Input(
+                default="DPMSolverMultistep",
+                choices=[
+                    "DDIM",
+                    "K_EULER",
+                    "DPMSolverMultistep",
+                    "K_EULER_ANCESTRAL",
+                    "PNDM",
+                    "KLMS",
+                ],
+                description="Choose a scheduler.",
+            ),
+            lora_urls: str = Input(
+                description="List of urls for safetensors of lora models, seperated with | .",
+                default="",
+            ),
+            lora_scales: str = Input(
+                description="List of scales for safetensors of lora models, seperated with | ",
+                default="0.5",
+            ),
+            seed: int = Input(
+                description="Random seed. Leave blank to randomize the seed", default=None
+            ),
+            adapter_condition_image: Path = Input(
+                description="(T2I-adapter) Adapter Condition Image to gain extra control over generation. If this is not none, T2I adapter will be invoked. Width, Height of this image must match the above parameter, or dimension of the Img2Img image.",
+                default=None,
+            ),
+            adapter_type: str = Input(
+                description="(T2I-adapter) Choose an adapter type for the additional condition.",
+                choices=["sketch", "seg", "keypose", "depth"],
+                default="sketch",
+            ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
         if seed is None:
@@ -194,15 +205,15 @@ class Predictor(BasePredictor):
         print(f"Using seed: {seed}")
 
         if image is not None:
-            pil_image = Image.open(image).convert("RGB")
+            pil_image = load_image_from_url(image).convert("RGB")
             width, height = pil_image.size
 
         print(f"Generating image of {width} x {height} with prompt: {prompt}")
 
-        if width * height > 786432:
-            raise ValueError(
-                "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
-            )
+        # if width * height > 786432:
+        #     raise ValueError(
+        #         "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
+        #     )
 
         generator = torch.Generator("cuda").manual_seed(seed)
 
@@ -272,11 +283,17 @@ class Predictor(BasePredictor):
                 num_inference_steps=num_inference_steps,
             )
         else:
-            extra_kwargs = {
-                "image": pil_image,
-                "strength": prompt_strength,
-            }
-
+            # Here is image-to-image
+            if mask is not None:
+                mask = load_image_from_url(mask).convert("RGB").resize((width, height))
+                extra_kwargs = {
+                    "mask_image": mask,
+                    "image": pil_image,
+                    "strength": prompt_strength,
+                }
+            else:
+                mask = None
+                extra_kwargs = {"image": pil_image, "strength": prompt_strength}
             self.img2img_pipe.scheduler = make_scheduler(
                 scheduler, self.pipe.scheduler.config
             )
