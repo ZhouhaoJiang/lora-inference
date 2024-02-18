@@ -36,8 +36,9 @@ IS_FP16 = os.environ.get("IS_FP16", "0") == "1"
 
 
 def url_local_fn(url):
-    return sha512(url.encode()).hexdigest() + ".safetensors"
-
+    file_name =  sha512(url.encode()).hexdigest() + ".safetensors"
+    file_name = "lora_model/" + file_name
+    return os.path.join(MODEL_CACHE, file_name)
 
 def load_image_from_url(url):
     response = requests.get(url)
@@ -127,6 +128,7 @@ class Predictor(BasePredictor):
                 self.pipe.fuse_lora(lora_scale=lora_weight_scale)
 
             print("LoRA models have been loaded and applied.")
+            self.loaded = merged_fn
 
             # st = time.time()
             # self.lora_manager = LoRAManager(
@@ -337,6 +339,11 @@ class Predictor(BasePredictor):
             raise Exception(
                 "NSFW content detected. Try running it again, or try a different prompt."
             )
+
+        # 清除所有lora模型
+        self.pipe.unload_lora_weights()
+        self.loaded = None
+        self.lora_manager = None
 
         return output_paths
 
