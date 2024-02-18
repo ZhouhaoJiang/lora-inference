@@ -195,15 +195,10 @@ class Predictor(BasePredictor):
             seed: int = Input(
                 description="Random seed. Leave blank to randomize the seed", default=None
             ),
-            # adapter_condition_image: str = Input(
-            #     description="(T2I-adapter) Adapter Condition Image to gain extra control over generation. If this is not none, T2I adapter will be invoked. Width, Height of this image must match the above parameter, or dimension of the Img2Img image.",
-            #     default=None,
-            # ),
-            # adapter_type: str = Input(
-            #     description="(T2I-adapter) Choose an adapter type for the additional condition.",
-            #     choices=["sketch", "seg", "keypose", "depth"],
-            #     default="sketch",
-            # ),
+            disable_safety_checker: bool = Input(
+                description="Disable safety checker for generated images. This feature is only available through the API. See [https://replicate.com/docs/how-does-replicate-work#safety](https://replicate.com/docs/how-does-replicate-work#safety)",
+                default=False,
+            ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
         if seed is None:
@@ -248,43 +243,6 @@ class Predictor(BasePredictor):
         # handle t2i adapter
         w_c, h_c = None, None
 
-        # if adapter_condition_image is not None:
-        #
-        #     cond_img = load_image_from_url(adapter_condition_image)
-        #     w_c, h_c = cond_img.size
-        #
-        #     if w_c != width or h_c != height:
-        #         raise ValueError(
-        #             "Width and height of the adapter condition image must match the width and height of the generated image."
-        #         )
-        #
-        #     if adapter_type == "sketch":
-        #         cond_img = cond_img.convert("L")
-        #         cond_img = np.array(cond_img) / 255.0
-        #         cond_img = (
-        #             torch.from_numpy(cond_img).unsqueeze(0).unsqueeze(0).to("cuda")
-        #         )
-        #         cond_img = (cond_img > 0.5).float()
-        #
-        #     else:
-        #         cond_img = cond_img.convert("RGB")
-        #         cond_img = np.array(cond_img) / 255.0
-        #
-        #         cond_img = (
-        #             torch.from_numpy(cond_img)
-        #             .permute(2, 0, 1)
-        #             .unsqueeze(0)
-        #             .to("cuda")
-        #             .float()
-        #         )
-        #
-        #     with torch.no_grad():
-        #         adapter_features = self.adapters[adapter_type](cond_img)
-        #
-        #     self.pipe.unet.set_adapter_features(adapter_features)
-        # else:
-        #     self.pipe.unet.set_adapter_features(None) # 重置adapter_features
-
         # either text2img or img2img
         if image is None:
             self.pipe.scheduler = make_scheduler(scheduler, self.pipe.scheduler.config)
@@ -328,18 +286,26 @@ class Predictor(BasePredictor):
             )
 
         output_paths = []
-        for i, sample in enumerate(output.images):
-            if output.nsfw_content_detected and output.nsfw_content_detected[i]:
-                continue
+        if disable_safety_checker:
+            # 当 disable_safety_checker 为 True 时的逻辑
+            for i, sample in enumerate(output.images):
+                output_path = f"/tmp/out-{i}.png"
+                sample.save(output_path)
+                output_paths.append(Path(output_path))
+        else:
+            # 执行安全检查的逻辑
+            for i, sample in enumerate(output.images):
+                if output.nsfw_content_detected and output.nsfw_content_detected[i]:
+                    continue
 
-            output_path = f"/tmp/out-{i}.png"
-            sample.save(output_path)
-            output_paths.append(Path(output_path))
+                output_path = f"/tmp/out-{i}.png"
+                sample.save(output_path)
+                output_paths.append(Path(output_path))
 
-        if len(output_paths) == 0:
-            raise Exception(
-                "NSFW content detected. Try running it again, or try a different prompt."
-            )
+            if len(output_paths) == 0:
+                raise Exception(
+                    "NSFW content detected. Try running it again, or try a different prompt."
+                )
 
         # 清除所有lora模型
         self.pipe.unload_lora_weights()
