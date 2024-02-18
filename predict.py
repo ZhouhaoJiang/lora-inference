@@ -113,13 +113,26 @@ class Predictor(BasePredictor):
             print("The requested LoRAs are loaded.")
             assert self.lora_manager is not None
         else:
+            # 保存下载后的权重文件名
+            lora_weight_files = []
 
-            st = time.time()
-            self.lora_manager = LoRAManager(
-                [download_lora(url) for url in urllists], self.pipe
-            )
-            self.loaded = merged_fn
-            print(f"merging time: {time.time() - st}")
+            # 下载每个 LoRA 权重
+            for url in urllists:
+                fn = download_lora(url)
+                lora_weight_files.append(fn)
+
+            # diffusers 的load_lora_weights方法加载权重
+            for lora_weight_file in lora_weight_files:
+                self.pipe.load_lora_weights(lora_weight_file)
+
+            print("LoRA models have been loaded and applied.")
+
+            # st = time.time()
+            # self.lora_manager = LoRAManager(
+            #     [download_lora(url) for url in urllists], self.pipe
+            # )
+            # self.loaded = merged_fn
+            # print(f"merging time: {time.time() - st}")
 
         self.lora_manager.tune(scales)
 
@@ -210,10 +223,10 @@ class Predictor(BasePredictor):
 
         print(f"Generating image of {width} x {height} with prompt: {prompt}")
 
-        # if width * height > 786432:
-        #     raise ValueError(
-        #         "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
-        #     )
+        if width * height > 786432:
+            raise ValueError(
+                "Maximum size is 1024x768 or 768x1024 pixels, because of memory limits. Please select a lower width or height."
+            )
 
         generator = torch.Generator("cuda").manual_seed(seed)
 
@@ -224,8 +237,10 @@ class Predictor(BasePredictor):
             prompt = self.lora_manager.prompt(prompt)
         else:
             print("No LoRA models provided, using default model...")
-            monkeypatch_remove_lora(self.pipe.unet)
-            monkeypatch_remove_lora(self.pipe.text_encoder)
+            # monkeypatch_remove_lora(self.pipe.unet)
+            # monkeypatch_remove_lora(self.pipe.text_encoder)
+            self.pipe.unet.set_lora(None)
+            self.pipe.text_encoder.set_lora(None)
 
         # handle t2i adapter
         w_c, h_c = None, None
