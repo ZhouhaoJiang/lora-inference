@@ -143,7 +143,7 @@ class Predictor(BasePredictor):
     def predict(
             self,
             prompt: str = Input(
-                description="Input prompt. Use <1>, <2>, <3>, etc., to specify LoRA concepts",
+                description="Input prompt. The model will generate an image based on this prompt.",
                 default="a photo of <1> riding a horse on mars",
             ),
             negative_prompt: str = Input(
@@ -165,7 +165,7 @@ class Predictor(BasePredictor):
                 default=1,
             ),
             num_inference_steps: int = Input(
-                description="Number of denoising steps", ge=1, le=500, default=50
+                description="Number of denoising steps.Recommend 25~35", ge=1, le=50, default=30
             ),
             guidance_scale: float = Input(
                 description="Scale for classifier-free guidance", ge=1, le=20, default=7.5
