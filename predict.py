@@ -124,7 +124,7 @@ class Predictor(BasePredictor):
             # diffusers 的load_lora_weights方法加载权重
             for lora_weight_file, lora_weight_scale in zip(lora_weight_files, scales):
                 self.pipe.load_lora_weights(lora_weight_file)
-                self.pipe.lora_scale(lora_weight_scale)
+                self.pipe.fuse_lora(lora_scale=lora_weight_scale)
 
             print("LoRA models have been loaded and applied.")
 
@@ -235,6 +235,7 @@ class Predictor(BasePredictor):
             lora_urls = [u.strip() for u in lora_urls.split("|")]
             lora_scales = [float(s.strip()) for s in lora_scales.split("|")]
             self.set_lora(lora_urls, lora_scales)
+            # prompt = self.lora_manager.prompt(prompt)
         else:
             print("No LoRA models provided, using default model...")
             # monkeypatch_remove_lora(self.pipe.unet)
