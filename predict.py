@@ -123,23 +123,11 @@ class Predictor(BasePredictor):
 
             # diffusers 的load_lora_weights方法加载权重
             for lora_weight_file, lora_weight_scale in zip(lora_weight_files, scales):
-                # self.pipe.load_lora_weights(pretrained_model_name_or_path_or_dict=lora_weight_file)
-                # pipeline.load_lora_weights("./models/lora_models/", weight_name="XXX.safetensors")
-                # self.pipe.load_lora_weights(f"./{MODEL_CACHE}/lora_models/", weight_name=lora_weight_file)
                 self.pipe.load_lora_weights(f"./{MODEL_CACHE}/lora_models/{lora_weight_file}")
                 self.pipe.fuse_lora(lora_scale=lora_weight_scale)
 
             print("LoRA models have been loaded and applied.")
             self.loaded = merged_fn
-
-            # st = time.time()
-            # self.lora_manager = LoRAManager(
-            #     [download_lora(url) for url in urllists], self.pipe
-            # )
-            # self.loaded = merged_fn
-            # print(f"merging time: {time.time() - st}")
-
-        # self.lora_manager.tune(scales)
 
     @torch.inference_mode()
     def predict(
@@ -236,6 +224,11 @@ class Predictor(BasePredictor):
         generator = torch.Generator("cuda").manual_seed(seed)
 
         if len(lora_urls) > 0:
+            # 重新初始化self.pipe
+            self.pipe = StableDiffusionPipeline.from_pretrained(
+                MODEL_CACHE,
+                torch_dtype=torch.float16 if IS_FP16 else torch.float32,
+            ).to("cuda")
             self.pipe.unload_lora_weights()
             lora_urls = [u.strip() for u in lora_urls.split("|")]
             lora_scales = [float(s.strip()) for s in lora_scales.split("|")]
@@ -247,6 +240,11 @@ class Predictor(BasePredictor):
             # monkeypatch_remove_lora(self.pipe.text_encoder)
             self.pipe.disable_lora()
             self.pipe.unload_lora_weights()
+            # 重新初始化self.pipe
+            self.pipe = StableDiffusionPipeline.from_pretrained(
+                MODEL_CACHE,
+                torch_dtype=torch.float16 if IS_FP16 else torch.float32,
+            ).to("cuda")
 
         # handle t2i adapter
         w_c, h_c = None, None
