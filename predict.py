@@ -113,7 +113,6 @@ class Predictor(BasePredictor):
         if self.loaded == merged_fn:
             print("The requested LoRAs are loaded.")
         else:
-            self.pipe.unload_lora_weights()
             # 保存下载后的权重文件名
             lora_weight_files = []
 
@@ -237,6 +236,7 @@ class Predictor(BasePredictor):
         generator = torch.Generator("cuda").manual_seed(seed)
 
         if len(lora_urls) > 0:
+            self.pipe.unload_lora_weights()
             lora_urls = [u.strip() for u in lora_urls.split("|")]
             lora_scales = [float(s.strip()) for s in lora_scales.split("|")]
             self.set_lora(lora_urls, lora_scales)
@@ -245,6 +245,7 @@ class Predictor(BasePredictor):
             print("No LoRA models provided, using default model...")
             # monkeypatch_remove_lora(self.pipe.unet)
             # monkeypatch_remove_lora(self.pipe.text_encoder)
+            self.pipe.disable_lora()
             self.pipe.unload_lora_weights()
 
         # handle t2i adapter
