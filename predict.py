@@ -20,7 +20,7 @@ from diffusers import (
 import numpy as np
 
 # from lora_diffusion import LoRAManager, monkeypatch_remove_lora
-from t2i_adapters import Adapter
+# from t2i_adapters import Adapter
 from t2i_adapters import patch_pipe as patch_pipe_t2i_adapter
 from PIL import Image
 
@@ -37,8 +37,7 @@ IS_FP16 = os.environ.get("IS_FP16", "0") == "1"
 
 def url_local_fn(url):
     file_name =  sha512(url.encode()).hexdigest() + ".safetensors"
-    file_name = "lora_model/" + file_name
-    return os.path.join(MODEL_CACHE, file_name)
+    return file_name
 
 def load_image_from_url(url):
     response = requests.get(url)
@@ -52,8 +51,8 @@ def download_lora(url):
     # TODO: allow-list of domains
 
     fn = url_local_fn(url)
-
-    if not os.path.exists(fn):
+    fn_path = f"./{MODEL_CACHE}/lora_models/{fn}"
+    if not os.path.exists(fn_path):
         print("Downloading LoRA model... from", url)
         # stream chunks of the file to disk
         with requests.get(url, stream=True) as r:
@@ -78,17 +77,17 @@ class Predictor(BasePredictor):
             torch_dtype=torch.float16 if IS_FP16 else torch.float32,
         ).to("cuda")
 
-        patch_pipe_t2i_adapter(self.pipe)
+        # patch_pipe_t2i_adapter(self.pipe)
 
-        self.adapters = {
-            ext_type: Adapter.from_pretrained(ext_type).to("cuda")
-            for ext_type, _ in [
-                ("depth", "antique house"),
-                ("seg", "motorcycle"),
-                ("keypose", "elon musk"),
-                ("sketch", "robot owl"),
-            ]
-        }
+        # self.adapters = {
+        #     ext_type: Adapter.from_pretrained(ext_type).to("cuda")
+        #     for ext_type, _ in [
+        #         ("depth", "antique house"),
+        #         ("seg", "motorcycle"),
+        #         ("keypose", "elon musk"),
+        #         ("sketch", "robot owl"),
+        #     ]
+        # }
 
         self.img2img_pipe = StableDiffusionImg2ImgPipeline(
             vae=self.pipe.vae,
@@ -124,7 +123,9 @@ class Predictor(BasePredictor):
 
             # diffusers 的load_lora_weights方法加载权重
             for lora_weight_file, lora_weight_scale in zip(lora_weight_files, scales):
-                self.pipe.load_lora_weights(pretrained_model_name_or_path_or_dict=lora_weight_file)
+                # self.pipe.load_lora_weights(pretrained_model_name_or_path_or_dict=lora_weight_file)
+                # pipeline.load_lora_weights("./models/lora_models/", weight_name="XXX.safetensors")
+                self.pipe.load_lora_weights(f"./{MODEL_CACHE}/lora_models/", weight_name=lora_weight_file)
                 self.pipe.fuse_lora(lora_scale=lora_weight_scale)
 
             print("LoRA models have been loaded and applied.")
@@ -205,15 +206,15 @@ class Predictor(BasePredictor):
             seed: int = Input(
                 description="Random seed. Leave blank to randomize the seed", default=None
             ),
-            adapter_condition_image: Path = Input(
-                description="(T2I-adapter) Adapter Condition Image to gain extra control over generation. If this is not none, T2I adapter will be invoked. Width, Height of this image must match the above parameter, or dimension of the Img2Img image.",
-                default=None,
-            ),
-            adapter_type: str = Input(
-                description="(T2I-adapter) Choose an adapter type for the additional condition.",
-                choices=["sketch", "seg", "keypose", "depth"],
-                default="sketch",
-            ),
+            # adapter_condition_image: str = Input(
+            #     description="(T2I-adapter) Adapter Condition Image to gain extra control over generation. If this is not none, T2I adapter will be invoked. Width, Height of this image must match the above parameter, or dimension of the Img2Img image.",
+            #     default=None,
+            # ),
+            # adapter_type: str = Input(
+            #     description="(T2I-adapter) Choose an adapter type for the additional condition.",
+            #     choices=["sketch", "seg", "keypose", "depth"],
+            #     default="sketch",
+            # ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
         if seed is None:
@@ -247,42 +248,42 @@ class Predictor(BasePredictor):
         # handle t2i adapter
         w_c, h_c = None, None
 
-        if adapter_condition_image is not None:
-
-            cond_img = Image.open(adapter_condition_image)
-            w_c, h_c = cond_img.size
-
-            if w_c != width or h_c != height:
-                raise ValueError(
-                    "Width and height of the adapter condition image must match the width and height of the generated image."
-                )
-
-            if adapter_type == "sketch":
-                cond_img = cond_img.convert("L")
-                cond_img = np.array(cond_img) / 255.0
-                cond_img = (
-                    torch.from_numpy(cond_img).unsqueeze(0).unsqueeze(0).to("cuda")
-                )
-                cond_img = (cond_img > 0.5).float()
-
-            else:
-                cond_img = cond_img.convert("RGB")
-                cond_img = np.array(cond_img) / 255.0
-
-                cond_img = (
-                    torch.from_numpy(cond_img)
-                    .permute(2, 0, 1)
-                    .unsqueeze(0)
-                    .to("cuda")
-                    .float()
-                )
-
-            with torch.no_grad():
-                adapter_features = self.adapters[adapter_type](cond_img)
-
-            self.pipe.unet.set_adapter_features(adapter_features)
-        else:
-            self.pipe.unet.set_adapter_features(None)
+        # if adapter_condition_image is not None:
+        #
+        #     cond_img = load_image_from_url(adapter_condition_image)
+        #     w_c, h_c = cond_img.size
+        #
+        #     if w_c != width or h_c != height:
+        #         raise ValueError(
+        #             "Width and height of the adapter condition image must match the width and height of the generated image."
+        #         )
+        #
+        #     if adapter_type == "sketch":
+        #         cond_img = cond_img.convert("L")
+        #         cond_img = np.array(cond_img) / 255.0
+        #         cond_img = (
+        #             torch.from_numpy(cond_img).unsqueeze(0).unsqueeze(0).to("cuda")
+        #         )
+        #         cond_img = (cond_img > 0.5).float()
+        #
+        #     else:
+        #         cond_img = cond_img.convert("RGB")
+        #         cond_img = np.array(cond_img) / 255.0
+        #
+        #         cond_img = (
+        #             torch.from_numpy(cond_img)
+        #             .permute(2, 0, 1)
+        #             .unsqueeze(0)
+        #             .to("cuda")
+        #             .float()
+        #         )
+        #
+        #     with torch.no_grad():
+        #         adapter_features = self.adapters[adapter_type](cond_img)
+        #
+        #     self.pipe.unet.set_adapter_features(adapter_features)
+        # else:
+        #     self.pipe.unet.set_adapter_features(None) # 重置adapter_features
 
         # either text2img or img2img
         if image is None:
