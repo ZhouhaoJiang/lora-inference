@@ -36,7 +36,7 @@ IS_FP16 = os.environ.get("IS_FP16", "0") == "1"
 
 
 def url_local_fn(url):
-    file_name =  sha512(url.encode()).hexdigest() + ".safetensors"
+    file_name =  sha512(url.encode()).hexdigest()+".safetensors"
     return file_name
 
 def load_image_from_url(url):
@@ -57,7 +57,7 @@ def download_lora(url):
         # stream chunks of the file to disk
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
-            with open(fn, "wb") as f:
+            with open(fn_path, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
 
@@ -125,7 +125,8 @@ class Predictor(BasePredictor):
             for lora_weight_file, lora_weight_scale in zip(lora_weight_files, scales):
                 # self.pipe.load_lora_weights(pretrained_model_name_or_path_or_dict=lora_weight_file)
                 # pipeline.load_lora_weights("./models/lora_models/", weight_name="XXX.safetensors")
-                self.pipe.load_lora_weights(f"./{MODEL_CACHE}/lora_models/", weight_name=lora_weight_file)
+                # self.pipe.load_lora_weights(f"./{MODEL_CACHE}/lora_models/", weight_name=lora_weight_file)
+                self.pipe.load_lora_weights(f"./{MODEL_CACHE}/lora_models/{lora_weight_file}")
                 self.pipe.fuse_lora(lora_scale=lora_weight_scale)
 
             print("LoRA models have been loaded and applied.")
@@ -145,11 +146,11 @@ class Predictor(BasePredictor):
             self,
             prompt: str = Input(
                 description="Input prompt. The model will generate an image based on this prompt.",
-                default="a photo of <1> riding a horse on mars",
+                default="1girl,face,curly hair,red hair,white background",
             ),
             negative_prompt: str = Input(
                 description="Specify things to not see in the output",
-                default="",
+                default="nsfw",
             ),
             width: int = Input(
                 description="Width of output image. Maximum size is 1024x768 or 768x1024 because of memory limits",
