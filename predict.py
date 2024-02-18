@@ -112,8 +112,8 @@ class Predictor(BasePredictor):
 
         if self.loaded == merged_fn:
             print("The requested LoRAs are loaded.")
-            assert self.lora_manager is not None
         else:
+            self.pipe.unload_lora_weights()
             # 保存下载后的权重文件名
             lora_weight_files = []
 
@@ -344,7 +344,6 @@ class Predictor(BasePredictor):
             )
 
         # 清除所有lora模型
-        self.pipe.unload_lora_weights()
         self.loaded = None
         self.lora_manager = None
 
