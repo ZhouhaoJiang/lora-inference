@@ -76,6 +76,7 @@ class Predictor(BasePredictor):
         self.pipe = StableDiffusionPipeline.from_pretrained(
             MODEL_CACHE,
             torch_dtype=torch.float16 if IS_FP16 else torch.float32,
+            safety_checker=None,
         ).to("cuda")
 
         # patch_pipe_t2i_adapter(self.pipe)
@@ -96,7 +97,7 @@ class Predictor(BasePredictor):
             tokenizer=self.pipe.tokenizer,
             unet=self.pipe.unet,
             scheduler=self.pipe.scheduler,
-            safety_checker=self.pipe.safety_checker,
+            safety_checker=None,
             feature_extractor=self.pipe.feature_extractor,
         ).to("cuda")
 
