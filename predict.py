@@ -169,11 +169,11 @@ class Predictor(BasePredictor):
             ),
             image: str = Input(
                 description="(Img2Img) Inital image to generate variations of. If this is not none, Img2Img will be invoked.Just One",
-                default="",
+                default=None,
             ),
             mask: str = Input(
                 description="Black and white image to use as mask for inpainting over the image provided. White pixels are inpainted and black pixels are preserved",
-                default="",
+                default=None,
             ),
             prompt_strength: float = Input(
                 description="(Img2Img) Prompt strength when providing the image. 1.0 corresponds to full destruction of information in init image",
