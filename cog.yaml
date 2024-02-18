@@ -21,5 +21,6 @@ build:
     - "opencv-python==4.7.0.68"
     - "torchvision==0.14.0"
     - "python-dotenv"
+    - "safetensors==0.4.2"
 
 predict: "predict.py:Predictor"

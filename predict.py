@@ -19,7 +19,7 @@ from diffusers import (
 )
 import numpy as np
 
-from lora_diffusion import LoRAManager, monkeypatch_remove_lora
+# from lora_diffusion import LoRAManager, monkeypatch_remove_lora
 from t2i_adapters import Adapter
 from t2i_adapters import patch_pipe as patch_pipe_t2i_adapter
 from PIL import Image
@@ -122,8 +122,9 @@ class Predictor(BasePredictor):
                 lora_weight_files.append(fn)
 
             # diffusers 的load_lora_weights方法加载权重
-            for lora_weight_file in lora_weight_files:
+            for lora_weight_file, lora_weight_scale in zip(lora_weight_files, scales):
                 self.pipe.load_lora_weights(lora_weight_file)
+                self.pipe.lora_scale(lora_weight_scale)
 
             print("LoRA models have been loaded and applied.")
 
@@ -134,7 +135,7 @@ class Predictor(BasePredictor):
             # self.loaded = merged_fn
             # print(f"merging time: {time.time() - st}")
 
-        self.lora_manager.tune(scales)
+        # self.lora_manager.tune(scales)
 
     @torch.inference_mode()
     def predict(
@@ -234,7 +235,6 @@ class Predictor(BasePredictor):
             lora_urls = [u.strip() for u in lora_urls.split("|")]
             lora_scales = [float(s.strip()) for s in lora_scales.split("|")]
             self.set_lora(lora_urls, lora_scales)
-            prompt = self.lora_manager.prompt(prompt)
         else:
             print("No LoRA models provided, using default model...")
             # monkeypatch_remove_lora(self.pipe.unet)
