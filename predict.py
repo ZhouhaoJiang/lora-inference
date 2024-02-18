@@ -123,7 +123,7 @@ class Predictor(BasePredictor):
 
             # diffusers 的load_lora_weights方法加载权重
             for lora_weight_file, lora_weight_scale in zip(lora_weight_files, scales):
-                self.pipe.load_lora_weights(lora_weight_file)
+                self.pipe.load_lora_weights(pretrained_model_name_or_path_or_dict=lora_weight_file)
                 self.pipe.fuse_lora(lora_scale=lora_weight_scale)
 
             print("LoRA models have been loaded and applied.")
