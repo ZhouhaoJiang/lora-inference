@@ -240,8 +240,7 @@ class Predictor(BasePredictor):
             print("No LoRA models provided, using default model...")
             # monkeypatch_remove_lora(self.pipe.unet)
             # monkeypatch_remove_lora(self.pipe.text_encoder)
-            self.pipe.unet.set_lora(None)
-            self.pipe.text_encoder.set_lora(None)
+            self.pipe.unload_lora_weights()
 
         # handle t2i adapter
         w_c, h_c = None, None
