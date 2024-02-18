@@ -218,12 +218,6 @@ class Predictor(BasePredictor):
 
         generator = torch.Generator("cuda").manual_seed(seed)
 
-        # 根据disable_safety_checker来决定pipe的safety_checker
-        if disable_safety_checker:
-            self.pipe.safety_checker = None
-        else:
-            self.pipe.safety_checker = self.pipe.safety_checker
-
         if len(lora_urls) > 0:
             # 重新初始化self.pipe
             self.pipe = StableDiffusionPipeline.from_pretrained(
@@ -243,6 +237,13 @@ class Predictor(BasePredictor):
                 MODEL_CACHE,
                 torch_dtype=torch.float16 if IS_FP16 else torch.float32,
             ).to("cuda")
+
+        # 根据disable_safety_checker来决定pipe的safety_checker
+        # 当disable_safety_checker为True时，safety_checker为None
+        if disable_safety_checker:
+            self.pipe.safety_checker = None
+        else:
+            self.pipe.safety_checker = self.pipe.safety_checker
 
         # handle t2i adapter
         w_c, h_c = None, None
