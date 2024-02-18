@@ -238,7 +238,6 @@ class Predictor(BasePredictor):
             print("No LoRA models provided, using default model...")
             # monkeypatch_remove_lora(self.pipe.unet)
             # monkeypatch_remove_lora(self.pipe.text_encoder)
-            self.pipe.disable_lora()
             self.pipe.unload_lora_weights()
             # 重新初始化self.pipe
             self.pipe = StableDiffusionPipeline.from_pretrained(
