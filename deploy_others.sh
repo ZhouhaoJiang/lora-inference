@@ -1,4 +1,4 @@
-export MODEL_ID="digiplay/majicMIX_realistic_v6" # change this
+export MODEL_ID="jzli/majicMIX-realistic-7" # change this
 export SAFETY_MODEL_ID="CompVis/stable-diffusion-safety-checker"
 export IS_FP16=1
 export USERNAME="zhouhaojiang" # change this
