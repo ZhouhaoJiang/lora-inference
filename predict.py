@@ -36,8 +36,9 @@ IS_FP16 = os.environ.get("IS_FP16", "0") == "1"
 
 
 def url_local_fn(url):
-    file_name =  sha512(url.encode()).hexdigest()+".safetensors"
+    file_name = sha512(url.encode()).hexdigest() + ".safetensors"
     return file_name
+
 
 def load_image_from_url(url):
     response = requests.get(url)
@@ -48,19 +49,19 @@ def load_image_from_url(url):
 
 
 def download_lora(url):
-    # TODO: allow-list of domains
-
     fn = url_local_fn(url)
     fn_path = f"./{MODEL_CACHE}/lora_models/{fn}"
+
+    # 确保目录存在 如果不存在则创建
+    os.makedirs(os.path.dirname(fn_path), exist_ok=True)
+
     if not os.path.exists(fn_path):
         print("Downloading LoRA model... from", url)
-        # stream chunks of the file to disk
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
             with open(fn_path, "wb") as f:
                 for chunk in r.iter_content(chunk_size=8192):
                     f.write(chunk)
-
     else:
         print("Using disk cache...")
 
