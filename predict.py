@@ -219,16 +219,29 @@ class Predictor(BasePredictor):
         generator = torch.Generator("cuda").manual_seed(seed)
 
         if len(lora_urls) > 0:
-            # 重新初始化self.pipe
+
+            # 重新初始化self.pipe和self.img2img_pipe
             self.pipe = StableDiffusionPipeline.from_pretrained(
                 MODEL_CACHE,
                 torch_dtype=torch.float16 if IS_FP16 else torch.float32,
             ).to("cuda")
+            self.img2img_pipe = StableDiffusionImg2ImgPipeline(
+                vae=self.pipe.vae,
+                text_encoder=self.pipe.text_encoder,
+                tokenizer=self.pipe.tokenizer,
+                unet=self.pipe.unet,
+                scheduler=self.pipe.scheduler,
+                safety_checker=self.pipe.safety_checker,
+                feature_extractor=self.pipe.feature_extractor,
+            ).to("cuda")
+
             self.pipe.unload_lora_weights()
+            self.img2img_pipe.unload_lora_weights()
+
             lora_urls = [u.strip() for u in lora_urls.split("|")]
             lora_scales = [float(s.strip()) for s in lora_scales.split("|")]
             self.set_lora(lora_urls, lora_scales)
-            # prompt = self.lora_manager.prompt(prompt)
+
         else:
             print("No LoRA models provided, using default model...")
             self.pipe.unload_lora_weights()
@@ -238,12 +251,25 @@ class Predictor(BasePredictor):
                 torch_dtype=torch.float16 if IS_FP16 else torch.float32,
             ).to("cuda")
 
+            self.img2img_pipe.unload_lora_weights()
+            # 重新初始化self.img2img_pipe
+            self.img2img_pipe = StableDiffusionImg2ImgPipeline(
+                vae=self.pipe.vae,
+                text_encoder=self.pipe.text_encoder,
+                tokenizer=self.pipe.tokenizer,
+                unet=self.pipe.unet,
+                scheduler=self.pipe.scheduler,
+                safety_checker=self.pipe.safety_checker,
+                feature_extractor=self.pipe.feature_extractor,
+            ).to("cuda")
+
         # 根据disable_safety_checker来决定pipe的safety_checker
         # 当disable_safety_checker为True时，safety_checker为None
         if disable_safety_checker:
             self.pipe.safety_checker = None
         else:
             self.pipe.safety_checker = self.pipe.safety_checker
+            self.img2img_pipe.safety_checker = self.img2img_pipe.safety_checker
 
         # handle t2i adapter
         w_c, h_c = None, None
